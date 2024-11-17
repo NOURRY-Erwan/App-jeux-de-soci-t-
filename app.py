@@ -1,4 +1,13 @@
-def validate_and_clean_data(df: pd.DataFrame) -> pd.DataFrame:
+import pandas as pd
+import streamlit as st
+from typing import Optional, Tuple, List, Dict
+import re
+
+# Constante pour le lien Google Sheets
+SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+
+def validate_and_clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     """Valide et nettoie les données du DataFrame."""
     
     # Copie du DataFrame pour éviter les modifications sur l'original
@@ -62,7 +71,6 @@ def validate_and_clean_data(df: pd.DataFrame) -> pd.DataFrame:
 def format_game_duration(duration_str: str) -> str:
     """Formate la durée du jeu de manière cohérente."""
     try:
-        # Extraction des nombres
         numbers = [int(n) for n in re.findall(r'\d+', str(duration_str))]
         if not numbers:
             return "Durée non spécifiée"
@@ -91,83 +99,7 @@ def format_player_count(players_str: str) -> str:
             return players_str
     except:
         return players_str
-def main():
-    """Fonction principale de l'application."""
-    setup_page()
-    
-    # Ajout du mode debug dans la sidebar
-    with st.sidebar:
-        st.divider()
-        debug_mode = st.checkbox("🛠️ Mode Debug")
-    
-    # Chargement et validation des données
-    df = load_data()
-    df_clean, validation_results = validate_and_clean_data(df)
-    
-    if debug_mode:
-        st.sidebar.expander("🔍 Informations de Debug").write({
-            "Shape": df_clean.shape,
-            "Colonnes": df_clean.columns.tolist(),
-            "Types": df_clean.dtypes.to_dict(),
-            "Valeurs manquantes": df_clean.isna().sum().to_dict()
-        })
-        
-        if validation_results:
-            st.sidebar.error("⚠️ Problèmes détectés:")
-            for result in validation_results:
-                st.sidebar.warning(result)
-    
-    # Création et application des filtres
-    filters = create_filters(df_clean)
-    jeux_filtres = filter_games(df_clean, filters)
-    
-    # Affichage des statistiques dans des colonnes
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("📊 Jeux trouvés", len(jeux_filtres))
-    
-    if 'note' in df_clean.columns:
-        with col2:
-            note_moyenne = jeux_filtres['note'].mean()
-            if not pd.isna(note_moyenne):
-                st.metric(
-                    "⭐ Note moyenne",
-                    f"{note_moyenne:.1f}/5",
-                    delta=f"{(note_moyenne - df_clean['note'].mean()):.1f}"
-                )
-    
-    with col3:
-        jeux_notes = jeux_filtres['note'].notna().sum()
-        total_jeux = len(jeux_filtres)
-        if total_jeux > 0:
-            st.metric(
-                "📝 Jeux notés",
-                f"{jeux_notes}/{total_jeux}",
-                delta=f"{(jeux_notes/total_jeux*100):.0f}%"
-            )
-    
-    with col4:
-        duree_moyenne = jeux_filtres['temps_minutes'].mean()
-        if not pd.isna(duree_moyenne):
-            st.metric("⏱️ Durée moyenne", f"{duree_moyenne:.0f} min")
-    
-    # Affichage d'un résumé avant la grille
-    if len(jeux_filtres) > 0:
-        with st.expander("📈 Statistiques détaillées"):
-            st.write("Top 5 des mécanismes les plus présents:")
-            if 'mécanisme' in jeux_filtres.columns:
-                mecanismes_counts = (
-                    jeux_filtres['mécanisme']
-                    .value_counts()
-                    .head()
-                    .to_dict()
-                )
-                for mec, count in mecanismes_counts.items():
-                    st.write(f"- {mec}: {count} jeux")
-    
-    # Affichage en mode galerie
-    display_games_grid(jeux_filtres)
+
 def add_custom_styles():
     """Ajoute des styles CSS personnalisés à l'application."""
     st.markdown("""
@@ -208,3 +140,207 @@ def add_custom_styles():
         }
         </style>
     """, unsafe_allow_html=True)
+
+def setup_page():
+    """Configure la page Streamlit avec les paramètres initiaux."""
+    st.set_page_config(
+        page_title="Collection de Jeux de Société",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    add_custom_styles()
+    st.title("🎲 Ma Collection de Jeux de Société")
+
+def load_data() -> pd.DataFrame:
+    """Charge les données depuis Google Sheets et vérifie l'intégrité des données."""
+    try:
+        df = pd.read_csv(SHEET_URL)
+        
+        # Liste des colonnes requises
+        required_columns = ['Noms', 'Nombre_de_joueur', 'temps_de_jeu']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            st.error(f"Colonnes manquantes dans le fichier: {', '.join(missing_columns)}")
+            st.stop()
+        
+        return df
+    
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données: {str(e)}")
+        st.write("URL utilisée:", SHEET_URL)
+        st.stop()
+
+def create_filters(df: pd.DataFrame):
+    """Crée et retourne les filtres pour la collection."""
+    with st.sidebar:
+        st.subheader("🎯 Filtres")
+        
+        # Filtre par note minimum
+        st.subheader("⭐ Note minimum")
+        if 'note' in df.columns:
+            note_min = st.slider(
+                "Note minimum",
+                min_value=float(df['note'].min() or 0),
+                max_value=float(df['note'].max() or 5),
+                value=0.0,
+                step=0.5
+            )
+        else:
+            note_min = 0
+        
+        # Filtre par nombre de joueurs
+        st.subheader("👥 Nombre de joueurs")
+        col1, col2 = st.columns(2)
+        with col1:
+            min_joueurs = st.number_input("Min", min_value=1, max_value=10, value=1)
+        with col2:
+            max_joueurs = st.number_input("Max", min_value=1, max_value=10, value=4)
+        
+        # Filtre par temps de jeu
+        st.subheader("⏱️ Temps de jeu")
+        temps_range = st.slider(
+            "Durée (minutes)",
+            min_value=0,
+            max_value=180,
+            value=(0, 120),
+            step=15
+        )
+        
+        # Filtre par mécanisme
+        if 'mécanisme' in df.columns:
+            st.subheader("⚙️ Mécanismes")
+            mecanismes_list = sorted([
+                m for m in df['mécanisme'].unique() 
+                if pd.notna(m) and str(m).strip()
+            ])
+            mecanismes = st.multiselect(
+                "Sélectionner les mécanismes",
+                options=mecanismes_list
+            )
+        else:
+            mecanismes = []
+            
+        # Tri des jeux
+        st.subheader("🔄 Tri")
+        tri_options = {
+            "Nom (A-Z)": "nom_asc",
+            "Nom (Z-A)": "nom_desc",
+            "Note (↑)": "note_asc",
+            "Note (↓)": "note_desc"
+        }
+        tri_choisi = st.radio("Trier par:", options=list(tri_options.keys()))
+            
+        # Filtre par texte
+        st.subheader("🔍 Recherche")
+        search_text = st.text_input("Rechercher un jeu")
+        
+        return min_joueurs, max_joueurs, temps_range, mecanismes, search_text, note_min, tri_options[tri_choisi]
+
+def filter_games(df: pd.DataFrame, filters) -> pd.DataFrame:
+    """Applique les filtres sur le DataFrame avec gestion des erreurs."""
+    min_joueurs, max_joueurs, temps_range, mecanismes, search_text, note_min, tri = filters
+    
+    try:
+        # Copie du DataFrame pour éviter les modifications sur l'original
+        df_filtered = df.copy()
+        
+        # Application des filtres avec gestion des erreurs
+        mask = pd.Series(True, index=df.index)
+        
+        # Filtre note minimum
+        if 'note' in df.columns:
+            mask &= df['note'].fillna(0) >= note_min
+        
+        # Filtre nombre de joueurs
+        try:
+            df_filtered['nombres_joueurs'] = df['Nombre_de_joueur'].apply(
+                lambda x: [int(n) for n in re.findall(r'\d+', str(x))] or [0]
+            )
+            joueurs_mask = df_filtered['nombres_joueurs'].apply(
+                lambda x: any(min_joueurs <= n <= max_joueurs for n in x if n > 0)
+            )
+            mask &= joueurs_mask
+        except Exception as e:
+            st.warning(f"Erreur lors du filtrage par nombre de joueurs: {str(e)}")
+        
+        # Filtre temps de jeu
+        try:
+            df_filtered['temps_minutes'] = df['temps_de_jeu'].apply(
+                lambda x: next(iter([int(n) for n in re.findall(r'\d+', str(x))]), 0)
+            )
+            mask &= df_filtered['temps_minutes'].between(temps_range[0], temps_range[1])
+        except Exception as e:
+            st.warning(f"Erreur lors du filtrage par temps de jeu: {str(e)}")
+        
+        # Filtre mécanismes
+        if mecanismes:
+            mecanisme_mask = df['mécanisme'].fillna('').str.lower().apply(
+                lambda x: any(m.lower() in x for m in mecanismes)
+            )
+            mask &= mecanisme_mask
+        
+        # Filtre texte
+        if search_text:
+            search_mask = df['Noms'].fillna('').str.contains(
+                search_text, case=False, na=False
+            )
+            if 'avis' in df.columns:
+                search_mask |= df['avis'].fillna('').str.contains(
+                    search_text, case=False, na=False
+                )
+            mask &= search_mask
+        
+        filtered_df = df[mask].copy()
+        
+        # Application du tri
+        try:
+            if tri == "nom_asc":
+                filtered_df = filtered_df.sort_values('Noms', na_position='last')
+            elif tri == "nom_desc":
+                filtered_df = filtered_df.sort_values('Noms', ascending=False, na_position='last')
+            elif tri == "note_asc" and 'note' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('note', na_position='last')
+            elif tri == "note_desc" and 'note' in filtered_df.columns:
+                filtered_df = filtered_df.sort_values('note', ascending=False, na_position='last')
+        except Exception as e:
+            st.warning(f"Erreur lors du tri: {str(e)}")
+        
+        return filtered_df
+    
+    except Exception as e:
+        st.error(f"Erreur lors du filtrage des jeux: {str(e)}")
+        return df
+
+def display_games_grid(jeux_filtres: pd.DataFrame, cols_per_row: int = 3):
+    """Affiche les jeux en mode galerie."""
+    cols = st.columns(cols_per_row)
+    
+    for idx, jeu in enumerate(jeux_filtres.itertuples()):
+        with cols[idx % cols_per_row]:
+            with st.container():
+                # Image du jeu
+                if hasattr(jeu, 'Boite_de_jeu') and pd.notna(jeu.Boite_de_jeu) and str(jeu.Boite_de_jeu).startswith('http'):
+                    st.image(jeu.Boite_de_jeu, use_column_width=True)
+                else:
+                    st.image("https://via.placeholder.com/200x200?text=Pas+d'image", use_column_width=True)
+                
+                # Titre et note
+                title = f"### {jeu.Noms}"
+                if hasattr(jeu, 'note') and pd.notna(jeu.note):
+                    title += f" ⭐ {jeu.note}/5"
+                st.markdown(title)
+                
+                # Informations principales
+                if hasattr(jeu, 'Nombre_de_joueur') and pd.notna(jeu.Nombre_de_joueur):
+                    st.write(f"🎲 **Joueurs**: {format_player_count(jeu.Nombre_de_joueur)}")
+                
+                if hasattr(jeu, 'temps_de_jeu') and pd.notna(jeu.temps_de_jeu):
+                    st.write(f"⏱️ **Durée**: {format_game_duration(jeu.temps_de_jeu)}")
+                
+                if hasattr(jeu, 'mécanisme') and pd.notna(jeu.mécanisme):
+                    st.write(f"⚙️ **Mécanisme**: {jeu.mécanisme}")
+                
+                # Avis
+                if hasattr(jeu, 'avis') and pd.notna(jeu.avis):
+                    with st.
