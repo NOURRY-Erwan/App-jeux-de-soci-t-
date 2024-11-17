@@ -4,7 +4,7 @@ from typing import Optional
 import re
 
 # Constante pour le lien Google Sheets
-SHEET_URL = "VOTRE_LIEN_GOOGLE_SHEETS_ICI"  # Remplacez par votre lien
+SHEET_URL = https://docs.google.com/spreadsheets/d/1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ/edit?gid=1409318024#gid=1409318024  # Remplacez par votre lien
 
 def setup_page():
     """Configure la page Streamlit avec les paramètres initiaux."""
