@@ -3,6 +3,9 @@ import streamlit as st
 from typing import Optional
 import re
 
+# Constante pour le lien Google Sheets
+SHEET_URL = "VOTRE_LIEN_GOOGLE_SHEETS_ICI"  # Remplacez par votre lien
+
 def setup_page():
     """Configure la page Streamlit avec les paramètres initiaux."""
     st.set_page_config(
@@ -12,28 +15,10 @@ def setup_page():
     )
     st.title("🎲 Ma Collection de Jeux de Société")
 
-def extract_sheet_id(url: str) -> Optional[str]:
-    """Extrait l'ID de la feuille Google Sheets depuis différents formats d'URL."""
-    patterns = [
-        r"/d/([a-zA-Z0-9-_]+)",  # Format standard
-        r"id=([a-zA-Z0-9-_]+)",  # Format avec paramètre id
-        r"spreadsheets/d/([a-zA-Z0-9-_]+)"  # Format long
-    ]
-    
-    for pattern in patterns:
-        if match := re.search(pattern, url):
-            return match.group(1)
-    return None
-
-def load_data(sheet_url: str) -> pd.DataFrame:
-    """Charge les données depuis Google Sheets avec gestion d'erreurs."""
+def load_data() -> pd.DataFrame:
+    """Charge les données depuis Google Sheets."""
     try:
-        sheet_id = extract_sheet_id(sheet_url)
-        if not sheet_id:
-            raise ValueError("ID de feuille invalide")
-        
-        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
-        df = pd.read_csv(url)
+        df = pd.read_csv(SHEET_URL)
         
         # Conversion de la colonne note en numérique
         if 'note' in df.columns:
@@ -144,9 +129,8 @@ def filter_games(df: pd.DataFrame, filters) -> pd.DataFrame:
     # Filtre texte
     if search_text:
         search_mask = df['Noms'].str.contains(search_text, case=False, na=False)
-        for col in ['récap', 'avis']:
-            if col in df.columns:
-                search_mask |= df[col].str.contains(search_text, case=False, na=False)
+        if 'avis' in df.columns:
+            search_mask |= df['avis'].str.contains(search_text, case=False, na=False)
         mask &= search_mask
     
     filtered_df = df[mask]
@@ -163,86 +147,71 @@ def filter_games(df: pd.DataFrame, filters) -> pd.DataFrame:
     
     return filtered_df
 
-def display_game(jeu: pd.Series):
-    """Affiche les détails d'un jeu dans un format amélioré."""
-    # Création du titre avec la note si elle existe
-    title = f"🎮 {jeu['Noms']}"
-    if pd.notna(jeu.get('note')):
-        title += f" ⭐ {jeu['note']}/5"
-        
-    with st.expander(title):
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            # Affichage des images avec gestion d'erreurs
-            for img_col in ['image', 'Boite de jeu']:
-                if pd.notna(jeu[img_col]) and str(jeu[img_col]).startswith('http'):
-                    try:
-                        st.image(jeu[img_col], width=200)
-                    except Exception:
-                        st.warning(f"Impossible de charger l'image {img_col}")
-        
-        with col2:
-            # Informations principales
-            st.markdown("### 📊 Informations")
-            infos = {
-                "⏱️ Temps de jeu": jeu['temps de jeu'],
-                "👥 Nombre de joueurs": jeu['Nombre de joueur'],
-                "⚙️ Mécanisme": jeu['mécanisme']
-            }
-            
-            for label, value in infos.items():
-                if pd.notna(value):
-                    st.write(f"**{label}** : {value}")
-            
-            # Récapitulatif
-            if pd.notna(jeu.get('récap')):
-                st.markdown("### 📝 Récapitulatif")
-                st.write(jeu['récap'])
-            
-            # Avis
-            if pd.notna(jeu.get('avis')):
-                st.markdown("### 💭 Mon avis")
-                st.write(jeu['avis'])
-            
-            # Lien vers les règles
-            if pd.notna(jeu['Règles']) and str(jeu['Règles']).startswith('http'):
-                st.link_button("📜 Voir les règles", jeu['Règles'])
+def display_games_grid(jeux_filtres: pd.DataFrame, cols_per_row: int = 3):
+    """Affiche les jeux en mode galerie."""
+    # Création des colonnes pour la grille
+    cols = st.columns(cols_per_row)
+    
+    # Parcours des jeux et affichage dans la grille
+    for idx, jeu in enumerate(jeux_filtres.itertuples()):
+        with cols[idx % cols_per_row]:
+            # Container pour le jeu
+            with st.container():
+                # Image du jeu
+                if hasattr(jeu, 'image') and pd.notna(jeu.image) and str(jeu.image).startswith('http'):
+                    st.image(jeu.image, use_column_width=True)
+                elif hasattr(jeu, 'Boite_de_jeu') and pd.notna(jeu.Boite_de_jeu) and str(jeu.Boite_de_jeu).startswith('http'):
+                    st.image(jeu.Boite_de_jeu, use_column_width=True)
+                else:
+                    st.image("https://via.placeholder.com/200x200?text=Pas+d'image", use_column_width=True)
+                
+                # Titre et note
+                title = f"### {jeu.Noms}"
+                if hasattr(jeu, 'note') and pd.notna(jeu.note):
+                    title += f" ⭐ {jeu.note}/5"
+                st.markdown(title)
+                
+                # Informations principales
+                st.write(f"🎲 **Joueurs**: {jeu.Nombre_de_joueur}")
+                st.write(f"⏱️ **Durée**: {jeu.temps_de_jeu}")
+                if hasattr(jeu, 'mécanisme') and pd.notna(jeu.mécanisme):
+                    st.write(f"⚙️ **Mécanisme**: {jeu.mécanisme}")
+                
+                # Avis (si présent)
+                if hasattr(jeu, 'avis') and pd.notna(jeu.avis):
+                    with st.expander("💭 Mon avis"):
+                        st.write(jeu.avis)
+                
+                # Lien vers les règles
+                if hasattr(jeu, 'Règles') and pd.notna(jeu.Règles) and str(jeu.Règles).startswith('http'):
+                    st.link_button("📜 Règles", jeu.Règles)
 
 def main():
     """Fonction principale de l'application."""
     setup_page()
     
-    # Zone pour l'URL
-    sheet_url = st.text_input(
-        "Lien de partage Google Sheets",
-        placeholder="Collez votre lien de partage ici..."
-    )
+    # Chargement des données
+    df = load_data()
     
-    if sheet_url:
-        # Chargement des données
-        df = load_data(sheet_url)
-        
-        # Création et application des filtres
-        filters = create_filters(df)
-        jeux_filtres = filter_games(df, filters)
-        
-        # Affichage des statistiques
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("📊 Nombre de jeux trouvés", len(jeux_filtres))
-        if 'note' in df.columns:
-            with col2:
-                note_moyenne = jeux_filtres['note'].mean()
-                if not pd.isna(note_moyenne):
-                    st.metric("⭐ Note moyenne", f"{note_moyenne:.1f}/5")
-            with col3:
-                jeux_notes = jeux_filtres['note'].notna().sum()
-                st.metric("📝 Jeux notés", f"{jeux_notes}/{len(jeux_filtres)}")
-        
-        # Affichage de chaque jeu
-        for _, jeu in jeux_filtres.iterrows():
-            display_game(jeu)
+    # Création et application des filtres
+    filters = create_filters(df)
+    jeux_filtres = filter_games(df, filters)
+    
+    # Affichage des statistiques
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📊 Nombre de jeux trouvés", len(jeux_filtres))
+    if 'note' in df.columns:
+        with col2:
+            note_moyenne = jeux_filtres['note'].mean()
+            if not pd.isna(note_moyenne):
+                st.metric("⭐ Note moyenne", f"{note_moyenne:.1f}/5")
+        with col3:
+            jeux_notes = jeux_filtres['note'].notna().sum()
+            st.metric("📝 Jeux notés", f"{jeux_notes}/{len(jeux_filtres)}")
+    
+    # Affichage en mode galerie
+    display_games_grid(jeux_filtres)
 
 if __name__ == "__main__":
     main()
