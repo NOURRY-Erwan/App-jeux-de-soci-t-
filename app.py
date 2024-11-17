@@ -4,7 +4,23 @@ from typing import Optional
 import re
 
 # Constante pour le lien Google Sheets
-SHEET_URL = https://docs.google.com/spreadsheets/d/1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ/edit?usp=sharing # Remplacez par votre lien
+SHEET_ID = 1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ  # L'ID se trouve dans l'URL entre /d/ et /edit
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+
+def load_data() -> pd.DataFrame:
+    """Charge les données depuis Google Sheets."""
+    try:
+        df = pd.read_csv(SHEET_URL)
+        
+        # Conversion de la colonne note en numérique
+        if 'note' in df.columns:
+            df['note'] = pd.to_numeric(df['note'], errors='coerce')
+            
+        return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données: {str(e)}")
+        st.write("URL utilisée:", SHEET_URL)  # Pour debug
+        st.stop()
 
 def setup_page():
     """Configure la page Streamlit avec les paramètres initiaux."""
