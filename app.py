@@ -342,4 +342,6 @@ def display_games_grid(jeux_filtres: pd.DataFrame, cols_per_row: int = 3):
                     st.write(f"⚙️ **Mécanisme**: {jeu.mécanisme}")
                 
                 # Avis - Ajout d'un expander pour les commentaires
-                if hasattr(jeu, 'avis') and pd.notna(jeu.avis)
+                if hasattr(jeu, 'avis') and pd.notna(jeu.avis):
+                    with st.expander("Avis"):
+                        st.write(jeu.avis)
