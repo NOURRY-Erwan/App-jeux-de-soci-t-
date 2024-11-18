@@ -344,3 +344,24 @@ def display_games_grid(jeux_filtres: pd.DataFrame, cols_per_row: int = 3):
                 # Avis
                 if hasattr(jeu, 'avis') and pd.notna(jeu.avis):
                     with st.
+# Exemples de contextes Streamlit valides
+with st.container():
+    # Votre code ici
+    st.write("Contenu dans un conteneur")
+
+with st.expander("Titre de la section extensible"):
+    # Votre code ici
+    st.write("Contenu extensible")
+
+with st.form("mon_formulaire"):
+    # Éléments de formulaire
+    nom = st.text_input("Entrez votre nom")
+    soumis = st.form_submit_button("Soumettre")
+
+with st.columns(3) as cols:
+    with cols[0]:
+        st.write("Première colonne")
+    with cols[1]:
+        st.write("Deuxième colonne")
+    with cols[2]:
+        st.write("Troisième colonne")
