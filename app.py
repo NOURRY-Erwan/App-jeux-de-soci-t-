@@ -345,3 +345,13 @@ def display_games_grid(jeux_filtres: pd.DataFrame, cols_per_row: int = 3):
                 if hasattr(jeu, 'avis') and pd.notna(jeu.avis):
                     with st.expander("Avis"):
                         st.write(jeu.avis)
+setup_page()
+
+# Étape de chargement des données
+st.write("Chargement des données...")
+try:
+    df = load_data()  # Charge les données depuis Google Sheets
+    st.write("Données chargées avec succès :", df.head())
+except Exception as e:
+    st.error(f"Erreur lors du chargement des données : {e}")
+    st.stop()
