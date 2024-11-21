@@ -120,7 +120,6 @@ def load_data(url: str) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Erreur de chargement des données : {e}")
         return pd.DataFrame()
-
 def main():
     # Configuration de la page
     st.set_page_config(
@@ -136,6 +135,9 @@ def main():
     # Chargement des données
     df = load_data(SHEET_URL)
     
+    # Debug - afficher les colonnes
+    st.write("Colonnes disponibles :", list(df.columns))
+    
     # Validation des données
     df_clean, validation_results = validate_and_clean_data(df)
     
@@ -148,9 +150,9 @@ def main():
     st.sidebar.header("Filtres de Recherche")
     
     # Filtres dynamiques
-   selected_mechanism = st.sidebar.multiselect(
-    "Sélectionnez les mécanismes", 
-    options=df_clean['mécanisme'].dropna().unique().tolist() 
+    selected_mechanism = st.sidebar.multiselect(
+        "Sélectionnez les mécanismes", 
+        options=df_clean['mécanisme'].dropna().unique().tolist()
     )
     
     selected_duration = st.sidebar.slider(
