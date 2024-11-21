@@ -11,8 +11,6 @@ def validate_and_clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     """Valide et nettoie les données du DataFrame."""
     df_clean = df.copy()
     df_clean.columns = df_clean.columns.str.strip()
-    st.write("Colonnes du DataFrame original :", list(df.columns))
-st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
 
     column_types = {
         'Noms': str,
@@ -127,7 +125,9 @@ def main():
     add_custom_styles()
     
     st.title("🎲 Ma Collection de Jeux de Société")
-    
+        st.write("Colonnes du DataFrame original :", list(df.columns))
+st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
+
     # Chargement des données
     df = load_data(SHEET_URL)
     
