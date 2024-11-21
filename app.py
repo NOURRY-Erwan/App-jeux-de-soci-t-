@@ -2,33 +2,46 @@ import pandas as pd
 import streamlit as st
 import re
 
+# Configuration AVANT la fonction main
+st.set_page_config(page_title="Collection de Jeux", layout="wide")
+
+def load_data(url):
+    """Charger les données depuis l'URL"""
+    try:
+        # Lire le CSV avec vérification des encodages
+        df = pd.read_csv(url, encoding='utf-8')
+        
+        # Afficher les colonnes réelles
+        st.write("Colonnes réelles :", list(df.columns))
+        
+        # Nettoyer les noms de colonnes
+        df.columns = [col.strip().lower() for col in df.columns]
+        
+        return df
+    except Exception as e:
+        st.error(f"Erreur de chargement : {e}")
+        return pd.DataFrame()
+
 # Configuration Google Sheets
 SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+
 def main():
-    st.title("Débogage des Colonnes")
-    
+    st.title("🎲 Ma Collection de Jeux de Société")
+
     # Charger les données
-    df = pd.read_csv(SHEET_URL, encoding='utf-8')
-    
-    # Afficher les colonnes exactes
-    st.write("Colonnes dans le DataFrame :")
-    st.write(list(df.columns))
-    
-    # Afficher les premières lignes
-    st.write("Premières lignes :")
+    df = load_data(SHEET_URL)
+
+    if df.empty:
+        st.error("Impossible de charger les données.")
+        return
+
+    # Afficher toutes les colonnes pour débogage
+    st.write("Colonnes après nettoyage :", list(df.columns))
     st.write(df.head())
 
 if __name__ == "__main__":
     main()
-def load_data(url):
-    """Charger les données depuis l'URL Google Sheets"""
-    try:
-        # Lire le CSV en spécifiant l'encodage
-        df = pd.read_csv(url, encoding='utf-8')
-        
-        # Nettoyer les noms de colonnes
-        df.columns = [col.strip().lower() for col in df.columns]
         
         return df
     except Exception as e:
