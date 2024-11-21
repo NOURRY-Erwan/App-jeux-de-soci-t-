@@ -163,10 +163,14 @@ def main():
     if selected_mechanism:
         filtered_df = filtered_df[filtered_df['mécanisme'].isin(selected_mechanism)]
     
+    # Réinitialiser l'index
+    filtered_df = filtered_df.reset_index(drop=True)
+    
     # Affichage des jeux
     st.subheader(f"🃏 Jeux ({len(filtered_df)} trouvés)")
     
-    for index, row in filtered_df.iterrows():
+    for i in range(len(filtered_df)):
+        row = filtered_df.loc[i]
         with st.expander(row['Noms']):
             col1, col2 = st.columns([1, 2])
             
