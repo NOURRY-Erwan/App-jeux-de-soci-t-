@@ -148,9 +148,9 @@ def main():
     st.sidebar.header("Filtres de Recherche")
     
     # Filtres dynamiques
-    selected_mechanism = st.sidebar.multiselect(
-        "Sélectionnez les mécanismes", 
-        options=df_clean['mécanisme'].dropna().unique()
+   selected_mechanism = st.sidebar.multiselect(
+    "Sélectionnez les mécanismes", 
+    options=df_clean['mécanisme'].dropna().unique().tolist() 
     )
     
     selected_duration = st.sidebar.slider(
