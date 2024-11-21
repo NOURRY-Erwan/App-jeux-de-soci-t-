@@ -3,54 +3,46 @@ import streamlit as st
 import re
 from typing import Tuple, List
 
-# Configuration de base
-SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
-
 def validate_and_clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
-    """Valide et nettoie les données du DataFrame."""
-    df_clean = df.copy()
-    df_clean.columns = df_clean.columns.str.strip()
+    """Validate and clean DataFrame columns."""
+    if df.empty:
+        st.error("Le DataFrame est vide. Vérifiez votre source de données.")
+        return df, ["Aucune donnée chargée"]
 
-    column_types = {
-        'Noms': str,
-        'temps_de_jeu': str,
-        'Nombre_de_joueur': str,
-        'mécanisme': str,
-        'récap': str,
-        'Boite de jeu': str,
-        'Règles': str,
-        'image': str,
-        'Avis': str,
-        'Note': float
-    }
+    df_clean = df.copy()
     
-    for col, dtype in column_types.items():
-        if col in df_clean.columns:
-            try:
-                if dtype == str:
-                    df_clean[col] = df_clean[col].astype(str).replace('nan', '').str.strip()
-                elif dtype == float:
-                    df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
-            except Exception as e:
-                st.warning(f"Erreur lors de la conversion de la colonne {col}: {str(e)}")
+    # Normalize column names
+    df_clean.columns = [col.strip().lower() for col in df_clean.columns]
     
-    validation_results = []
+    # Required columns
+    required_columns = ['noms', 'temps_de_jeu', 'nombre_de_joueur', 'mécanisme', 'récap', 'note', 'image', 'règles']
     
-    if 'Note' in df_clean.columns:
-        invalid_notes = df_clean[
-            (df_clean['Note'].notna()) & 
-            ((df_clean['Note'] < 0) | (df_clean['Note'] > 5))
-        ]
+    # Check for missing columns
+    missing_columns = [col for col in required_columns if col not in df_clean.columns]
+    if missing_columns:
+        st.error(f"Colonnes manquantes : {', '.join(missing_columns)}")
+        return df_clean, [f"Colonnes manquantes : {', '.join(missing_columns)}"]
+
+    # Type conversion and cleaning
+    df_clean['noms'] = df_clean['noms'].astype(str).str.strip()
+    df_clean['temps_de_jeu'] = df_clean['temps_de_jeu'].astype(str).str.strip()
+    df_clean['nombre_de_joueur'] = df_clean['nombre_de_joueur'].astype(str).str.strip()
+    df_clean['mécanisme'] = df_clean['mécanisme'].astype(str).str.strip()
+    df_clean['récap'] = df_clean['récap'].astype(str).str.strip()
+    
+    # Note validation
+    try:
+        df_clean['note'] = pd.to_numeric(df_clean['note'], errors='coerce')
+        invalid_notes = df_clean[(df_clean['note'].notna()) & ((df_clean['note'] < 0) | (df_clean['note'] > 5))]
         if not invalid_notes.empty:
-            validation_results.append(
-                f"Notes invalides détectées: {len(invalid_notes)} entrées hors de la plage 0-5"
-            )
-    
-    return df_clean, validation_results
+            st.warning(f"Notes invalides détectées: {len(invalid_notes)} entrées hors de la plage 0-5")
+    except Exception as e:
+        st.error(f"Erreur lors de la validation des notes : {e}")
+
+    return df_clean, []
 
 def format_game_duration(duration_str: str) -> str:
-    """Formate la durée du jeu de manière cohérente."""
+    """Format game duration consistently."""
     try:
         numbers = [int(n) for n in re.findall(r'\d+', str(duration_str))]
         if not numbers:
@@ -61,11 +53,11 @@ def format_game_duration(duration_str: str) -> str:
             return f"{numbers[0]}-{numbers[1]} minutes"
         else:
             return duration_str
-    except ValueError:
+    except Exception:
         return duration_str
 
 def format_player_count(players_str: str) -> str:
-    """Formate le nombre de joueurs de manière cohérente."""
+    """Format player count consistently."""
     try:
         numbers = [int(n) for n in re.findall(r'\d+', str(players_str))]
         if not numbers:
@@ -76,14 +68,14 @@ def format_player_count(players_str: str) -> str:
             return f"{numbers[0]}-{numbers[1]} joueurs"
         else:
             return players_str
-    except ValueError:
+    except Exception:
         return players_str
 
 def add_custom_styles():
-    """Ajoute des styles CSS personnalisés à l'application."""
+    """Add custom CSS styles to the application."""
     st.markdown("""
     <style>
-    .stExpander {
+    .stExpander { 
         background-color: #f8f9fa;
         border-radius: 10px;
         border: 1px solid #dee2e6;
@@ -95,14 +87,6 @@ def add_custom_styles():
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .stImage {
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    h3 {
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
-    }
     .stButton > button {
         width: 100%;
         border-radius: 20px;
@@ -113,85 +97,78 @@ def add_custom_styles():
 
 @st.cache_data
 def load_data(url: str) -> pd.DataFrame:
-    """Charge les données depuis l'URL Google Sheets."""
+    """Load data from Google Sheets URL."""
     try:
-        df = pd.read_csv(url)
+        df = pd.read_csv(url, encoding='utf-8')
         return df
     except Exception as e:
         st.error(f"Erreur de chargement des données : {e}")
         return pd.DataFrame()
-        
+
 def main():
+    # Page configuration
     st.set_page_config(page_title="Collection de Jeux de Société", layout="wide")
     add_custom_styles()
     
     st.title("🎲 Ma Collection de Jeux de Société")
     
-    # Chargement des données
+    # Google Sheet configuration
+    SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
+    SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+    
+    # Load data
     df = load_data(SHEET_URL)
     
-    # Débogage des colonnes
-    st.write("Colonnes du DataFrame :", list(df.columns))
+    if df.empty:
+        st.error("Impossible de charger les données. Vérifiez votre connexion internet ou l'URL.")
+        return
     
-    # Validation des données
+    # Validate and clean data
     df_clean, validation_results = validate_and_clean_data(df)
     
-    # Débogage des colonnes nettoyées
-    st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
+    # Display validation warnings
+    for result in validation_results:
+        st.warning(result)
     
-    # Affichage des résultats de validation
-    if validation_results:
-        for result in validation_results:
-            st.warning(result)
-    
+    # Sidebar for filtering
     st.sidebar.header("Filtres de Recherche")
     
-    # Version sécurisée du filtre de mécanismes
-    mechanism_column = [col for col in df_clean.columns if col.lower() == 'mécanisme']
+    # Mechanism filter
+    unique_mechanisms = df_clean['mécanisme'].dropna().unique().tolist()
+    selected_mechanisms = st.sidebar.multiselect(
+        "Sélectionnez les mécanismes", 
+        options=unique_mechanisms
+    )
     
-    if mechanism_column:
-        selected_mechanism = st.sidebar.multiselect(
-            "Sélectionnez les mécanismes", 
-            options=df_clean[mechanism_column[0]].dropna().unique().tolist()
-        )
-    else:
-        st.error("Colonne 'mécanisme' non trouvée")
-        selected_mechanism = []
-    
-    # Filtrage des données
+    # Filter dataframe
     filtered_df = df_clean.copy()
-    if selected_mechanism:
-        filtered_df = filtered_df[filtered_df['mécanisme'].isin(selected_mechanism)]
+    if selected_mechanisms:
+        filtered_df = filtered_df[filtered_df['mécanisme'].isin(selected_mechanisms)]
     
-    # Réinitialiser l'index
-    filtered_df = filtered_df.reset_index(drop=True)
-    
-    # Affichage des jeux
+    # Display game count
     st.subheader(f"🃏 Jeux ({len(filtered_df)} trouvés)")
     
-    for i in range(len(filtered_df)):
-        row = filtered_df.loc[i]
-        with st.expander(row['Noms']):
+    # Display games
+    for _, row in filtered_df.iterrows():
+        with st.expander(row['noms']):
             col1, col2 = st.columns([1, 2])
             
             with col1:
-                # Image du jeu
+                # Game image
                 st.image(row['image'] if pd.notna(row['image']) else 'https://via.placeholder.com/200', width=200)
             
             with col2:
-                # Détails du jeu
-                st.metric("Note", f"{row['Note']}/5" if pd.notna(row['Note']) else "Non noté")
+                # Game details
+                st.metric("Note", f"{row['note']}/5" if pd.notna(row['note']) else "Non noté")
                 st.metric("Durée", format_game_duration(row['temps_de_jeu']))
-                st.metric("Joueurs", format_player_count(row['Nombre_de_joueur']))
+                st.metric("Joueurs", format_player_count(row['nombre_de_joueur']))
                 
-                # Boutons d'action
-                if pd.notna(row['Règles']):
-                    st.link_button("📖 Règles", row['Règles'])
+                # Rules button
+                if pd.notna(row['règles']):
+                    st.link_button("📖 Règles", row['règles'])
                 
-                # Mécanismes
+                # Mechanisms and description
                 st.write(f"**Mécanismes**: {row['mécanisme']}")
-                
-                # Récapitulatif
                 st.write(f"**Description**: {row['récap']}")
 
 if __name__ == "__main__":
