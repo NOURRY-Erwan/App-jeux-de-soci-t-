@@ -159,38 +159,51 @@ def load_data() -> pd.DataFrame:
         # Charger les données brutes
         df_raw = pd.read_csv(SHEET_URL, header=None)
         
-        # Créer un dictionnaire pour stocker les informations du jeu
-        game_data = {}
+        # Initialiser un dictionnaire pour stocker les informations du jeu
+        game_data = {
+            'Noms': '',
+            'temps_de_jeu': '',
+            'Nombre_de_joueur': '',
+            'mécanisme': '',
+            'Boite_de_jeu': '',
+            'Règles': '',
+            'avis': '',
+            'note': ''
+        }
         
         # Parcourir les lignes et extraire les informations
         for index, row in df_raw.iterrows():
-            value = row[0]
-            if ':' in value:
-                key, content = value.split(':', 1)
-                game_data[key.strip()] = content.strip()
+            value = str(row[0])  # Convertir en chaîne pour éviter les erreurs
+            
+            if value.startswith('Noms'):
+                game_data['Noms'] = value.split('Noms')[1].strip()
+            elif value.startswith('temps_de_jeu'):
+                game_data['temps_de_jeu'] = value.split('temps_de_jeu')[1].strip()
+            elif value.startswith('Nombre_de_joueur'):
+                game_data['Nombre_de_joueur'] = value.split('Nombre_de_joueur')[1].strip()
+            elif value.startswith('mécanisme'):
+                game_data['mécanisme'] = value.split('mécanisme')[1].strip()
+            elif value.startswith('Boite de jeu'):
+                game_data['Boite_de_jeu'] = value.split('Boite de jeu')[1].strip()
+            elif value.startswith('Règles'):
+                game_data['Règles'] = value.split('Règles')[1].strip()
+            elif value.startswith('Avis'):
+                game_data['avis'] = value.split('Avis')[1].strip()
+            elif value.startswith('Note'):
+                game_data['note'] = value.split('Note')[1].strip()
         
-        # Créer un DataFrame structuré
+        # Créer un DataFrame
         df = pd.DataFrame([game_data])
         
-        # Renommer et nettoyer les colonnes
-        df.columns = df.columns.str.strip()
+        # Nettoyer et formater les données
+        df['temps_de_jeu'] = re.findall(r'\d+\s*(?:min|mn)', df['temps_de_jeu'])[0] if re.findall(r'\d+\s*(?:min|mn)', df['temps_de_jeu']) else ''
+        df['Nombre_de_joueur'] = re.findall(r'\d+\s*-\s*\d+', df['Nombre_de_joueur'])[0] if re.findall(r'\d+\s*-\s*\d+', df['Nombre_de_joueur']) else ''
         
-        # Vérification et nettoyage des colonnes spécifiques
-        column_mapping = {
-            'Noms 6 qui prend': 'Noms',
-            'temps_de_jeu': 'temps_de_jeu',
-            'Nombre_de_joueur': 'Nombre_de_joueur',
-            'Boite de jeu': 'Boite_de_jeu',
-            'Avis': 'avis',
-            'Note': 'note'
-        }
-        
-        df = df.rename(columns=column_mapping)
-        
-        # Extraction des informations
-        df['Noms'] = df['Noms'].split('À l')[0].strip()
-        df['temps_de_jeu'] = re.findall(r'\d+\s*(?:min|mn)', df['temps_de_jeu'])[0]
-        df['Nombre_de_joueur'] = re.findall(r'\d+\s*-\s*\d+', df['Nombre_de_joueur'])[0]
+        # Convertir note en float si possible
+        try:
+            df['note'] = float(df['note']) if df['note'] else None
+        except:
+            df['note'] = None
         
         return df
     
