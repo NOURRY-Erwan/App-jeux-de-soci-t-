@@ -120,14 +120,13 @@ def load_data(url: str) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Erreur de chargement des données : {e}")
         return pd.DataFrame()
+        
 def main():
     st.set_page_config(page_title="Collection de Jeux de Société", layout="wide")
     add_custom_styles()
     
     st.title("🎲 Ma Collection de Jeux de Société")
-        st.write("Colonnes du DataFrame original :", list(df.columns))
-st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
-
+    
     # Chargement des données
     df = load_data(SHEET_URL)
     
@@ -136,6 +135,9 @@ st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
     
     # Validation des données
     df_clean, validation_results = validate_and_clean_data(df)
+    
+    # Débogage des colonnes nettoyées
+    st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
     
     # Affichage des résultats de validation
     if validation_results:
@@ -155,7 +157,12 @@ st.write("Colonnes du DataFrame nettoyé :", list(df_clean.columns))
     else:
         st.error("Colonne 'mécanisme' non trouvée")
         selected_mechanism = []
-        
+    
+    # Filtrage des données
+    filtered_df = df_clean.copy()
+    if selected_mechanism:
+        filtered_df = filtered_df[filtered_df['mécanisme'].isin(selected_mechanism)]
+    
     # Affichage des jeux
     st.subheader(f"🃏 Jeux ({len(filtered_df)} trouvés)")
     
