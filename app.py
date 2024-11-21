@@ -28,7 +28,7 @@ def validate_and_clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     'image': str,
     'Avis': str,
     'Note': float
-}
+        }
     
     # Conversion et nettoyage des colonnes
     for col, dtype in column_types.items():
