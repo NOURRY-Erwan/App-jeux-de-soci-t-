@@ -121,22 +121,16 @@ def load_data(url: str) -> pd.DataFrame:
         st.error(f"Erreur de chargement des données : {e}")
         return pd.DataFrame()
 def main():
-    # Configuration de la page
-    st.set_page_config(
-        page_title="Collection de Jeux de Société", 
-        layout="wide", 
-        initial_sidebar_state="expanded"
-    )
+    st.set_page_config(page_title="Collection de Jeux de Société", layout="wide")
     add_custom_styles()
     
-    # Titre principal
     st.title("🎲 Ma Collection de Jeux de Société")
     
     # Chargement des données
     df = load_data(SHEET_URL)
     
-    # Debug - afficher les colonnes
-    st.write("Colonnes disponibles :", list(df.columns))
+    # Débogage des colonnes
+    st.write("Colonnes du DataFrame :", list(df.columns))
     
     # Validation des données
     df_clean, validation_results = validate_and_clean_data(df)
@@ -146,28 +140,20 @@ def main():
         for result in validation_results:
             st.warning(result)
     
-    # Sidebar pour filtres
     st.sidebar.header("Filtres de Recherche")
     
-    # Filtres dynamiques
-    selected_mechanism = st.sidebar.multiselect(
-        "Sélectionnez les mécanismes", 
-        options=df_clean['mécanisme'].dropna().unique().tolist()
-    )
+    # Version sécurisée du filtre de mécanismes
+    mechanism_column = [col for col in df_clean.columns if col.lower() == 'mécanisme']
     
-    selected_duration = st.sidebar.slider(
-        "Durée de jeu (minutes)", 
-        min_value=0, 
-        max_value=int(df_clean['temps_de_jeu'].str.extract('(\d+)').astype(float).max()[0]),
-        value=(0, 120)
-    )
-    
-    # Filtrage des données
-    filtered_df = df_clean.copy()
-    
-    if selected_mechanism:
-        filtered_df = filtered_df[filtered_df['mécanisme'].isin(selected_mechanism)]
-    
+    if mechanism_column:
+        selected_mechanism = st.sidebar.multiselect(
+            "Sélectionnez les mécanismes", 
+            options=df_clean[mechanism_column[0]].dropna().unique().tolist()
+        )
+    else:
+        st.error("Colonne 'mécanisme' non trouvée")
+        selected_mechanism = []
+        
     # Affichage des jeux
     st.subheader(f"🃏 Jeux ({len(filtered_df)} trouvés)")
     
