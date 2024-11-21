@@ -17,19 +17,19 @@ def validate_and_clean_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     df_clean.columns = df_clean.columns.str.strip()
     
     # Mapping des types de données attendus
-   column_types = {
-    'Noms': str,
-    'temps_de_jeu': str,
-    'Nombre_de_joueur': str,
-    'mécanisme': str,
-    'récap': str,
-    'Boite_de_jeu': str,
-    'Règles': str,
-    'image': str,
-    'Avis': str,
-    'Note': float
-        }
-    
+    column_types = {
+        'Noms': str,
+        'temps_de_jeu': str,
+        'Nombre_de_joueur': str,
+        'mécanisme': str,
+        'récap': str,
+        'Boite de jeu': str,
+        'Règles': str,
+        'image': str,
+        'Avis': str,
+        'Note': float
+    }
+   
     # Conversion et nettoyage des colonnes
     for col, dtype in column_types.items():
         if col in df_clean.columns:
