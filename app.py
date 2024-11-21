@@ -156,18 +156,41 @@ def setup_page():
 def load_data() -> pd.DataFrame:
     """Charge les données depuis Google Sheets et vérifie l'intégrité des données."""
     try:
-        df = pd.read_csv(SHEET_URL)
+        # Charger les données brutes
+        df_raw = pd.read_csv(SHEET_URL, header=None)
         
-        # Nouvelle ligne de débogage
-        st.write("Colonnes présentes :", list(df.columns))
+        # Créer un dictionnaire pour stocker les informations du jeu
+        game_data = {}
         
-        # Liste des colonnes requises
-        required_columns = ['Noms', 'Nombre_de_joueur', 'temps_de_jeu']
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        # Parcourir les lignes et extraire les informations
+        for index, row in df_raw.iterrows():
+            value = row[0]
+            if ':' in value:
+                key, content = value.split(':', 1)
+                game_data[key.strip()] = content.strip()
         
-        if missing_columns:
-            st.error(f"Colonnes manquantes dans le fichier: {', '.join(missing_columns)}")
-            st.stop()
+        # Créer un DataFrame structuré
+        df = pd.DataFrame([game_data])
+        
+        # Renommer et nettoyer les colonnes
+        df.columns = df.columns.str.strip()
+        
+        # Vérification et nettoyage des colonnes spécifiques
+        column_mapping = {
+            'Noms 6 qui prend': 'Noms',
+            'temps_de_jeu': 'temps_de_jeu',
+            'Nombre_de_joueur': 'Nombre_de_joueur',
+            'Boite de jeu': 'Boite_de_jeu',
+            'Avis': 'avis',
+            'Note': 'note'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Extraction des informations
+        df['Noms'] = df['Noms'].split('À l')[0].strip()
+        df['temps_de_jeu'] = re.findall(r'\d+\s*(?:min|mn)', df['temps_de_jeu'])[0]
+        df['Nombre_de_joueur'] = re.findall(r'\d+\s*-\s*\d+', df['Nombre_de_joueur'])[0]
         
         return df
     
@@ -175,7 +198,7 @@ def load_data() -> pd.DataFrame:
         st.error(f"Erreur lors du chargement des données: {str(e)}")
         st.write("URL utilisée:", SHEET_URL)
         st.stop()
-
+        
 def create_filters(df: pd.DataFrame):
     """Crée et retourne les filtres pour la collection."""
     with st.sidebar:
