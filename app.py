@@ -132,11 +132,3 @@ st.title("🎲 Ma Collection de Jeux de Société")
 Chargement des données depuis le lien Google Sheets
 @st.cache_data  # Utilisez Streamlit pour mettre en cache la fonction
 def load_data(url: str) -> pd.DataFrame:
-"""Charge les données depuis Google Sheets."""
-return pd.read_csv(url)
-Appel de la fonction setup_page
-setup_page()
-ChargVoici la suite du code après l'appel à la fonction setup_page() en ajoutant le chargement des données et l'affichage du DataFrame tout en suivant les bonnes pratiques de Streamlit :
-# Chargement des données depuis le lien Google Sheets
-@st.cache_data  # Utilisez Streamlit pour mettre en cache la fonction
-def load_data(url: str) -> pd.DataFrame:
