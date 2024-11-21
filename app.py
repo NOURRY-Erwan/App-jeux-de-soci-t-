@@ -158,6 +158,9 @@ def load_data() -> pd.DataFrame:
     try:
         df = pd.read_csv(SHEET_URL)
         
+        # Nouvelle ligne de débogage
+        st.write("Colonnes présentes :", list(df.columns))
+        
         # Liste des colonnes requises
         required_columns = ['Noms', 'Nombre_de_joueur', 'temps_de_jeu']
         missing_columns = [col for col in required_columns if col not in df.columns]
