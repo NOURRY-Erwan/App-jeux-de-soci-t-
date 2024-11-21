@@ -5,7 +5,22 @@ import re
 # Configuration Google Sheets
 SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+def main():
+    st.title("Débogage des Colonnes")
+    
+    # Charger les données
+    df = pd.read_csv(SHEET_URL, encoding='utf-8')
+    
+    # Afficher les colonnes exactes
+    st.write("Colonnes dans le DataFrame :")
+    st.write(list(df.columns))
+    
+    # Afficher les premières lignes
+    st.write("Premières lignes :")
+    st.write(df.head())
 
+if __name__ == "__main__":
+    main()
 def load_data(url):
     """Charger les données depuis l'URL Google Sheets"""
     try:
