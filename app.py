@@ -1,17 +1,27 @@
 import streamlit as st
 import pandas as pd
-import requests
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Charger les données depuis GitHub
+# Configuration de l'accès à Google Sheets
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+creds = ServiceAccountCredentials.from_json_keyfile_name('chemin/vers/votre/fichier_credentials.json', scope)
+client = gspread.authorize(creds)
+
+# Ouvrir le Google Sheet spécifié
+sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ/edit?usp=sharing').worksheet('Feuille 1')
+
+# Fonction pour charger les données
 @st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/votre-nom-utilisateur/votre-repo/main/Fichier-jeux-de-societe-Base-de-donnee.csv"
-    df = pd.read_csv(url)
-    return df
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
 
-df = load_data()
-
+# Interface utilisateur Streamlit
 st.title('Gestionnaire de Jeux de Société')
+
+# Charger les données
+df = load_data()
 
 # Système de filtres
 st.sidebar.header('Filtres')
