@@ -1,0 +1,131 @@
+import React, { useState } from 'react';
+import { Search } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+
+// Fonction pour convertir les liens Google Drive en liens directs
+const getGoogleDriveDirectLink = (url) => {
+  if (!url) return null;
+  
+  // Pour les liens de partage Google Drive
+  if (url.includes('drive.google.com/file/d/')) {
+    const fileId = url.match(/\/d\/(.*?)(\/|$)/)?.[1];
+    if (fileId) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+  }
+  
+  // Pour les liens obtenus via "Copier le lien"
+  if (url.includes('drive.google.com/open?id=')) {
+    const fileId = url.split('id=')[1]?.split('&')[0];
+    if (fileId) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+  }
+  
+  return url;
+};
+
+const BoardGameGallery = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [games, setGames] = useState([
+    {
+      nom: "Catan",
+      temps_de_jeu: "60-120",
+      nombre_de_joueur: "3-4",
+      mecanisme: "Gestion de ressources",
+      recap: "Développez votre colonie...",
+      image: "https://drive.google.com/file/d/VOTRE_ID_ICI/view?usp=sharing",
+      boite_de_jeu: "https://drive.google.com/file/d/VOTRE_ID_ICI/view?usp=sharing",
+      regles: "https://drive.google.com/file/d/VOTRE_ID_ICI/view?usp=sharing",
+      avis: "Excellent jeu!",
+      note: 4.5
+    }
+    // Autres jeux à ajouter
+  ]);
+
+  // Filtrage des jeux
+  const filteredGames = games.filter(game => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      game.nom.toLowerCase().includes(searchLower) ||
+      game.temps_de_jeu.toString().includes(searchLower) ||
+      game.nombre_de_joueur.toString().includes(searchLower) ||
+      game.mecanisme.toLowerCase().includes(searchLower)
+    );
+  });
+
+  return (
+    <div className="p-4 max-w-7xl mx-auto">
+      <div className="mb-6 relative">
+        <div className="relative">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+          <Input
+            type="text"
+            placeholder="Rechercher un jeu..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredGames.map((game, index) => (
+          <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="relative aspect-video">
+              <img
+                src={getGoogleDriveDirectLink(game.image) || getGoogleDriveDirectLink(game.boite_de_jeu)}
+                alt={game.nom}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <CardHeader>
+              <CardTitle>{game.nom}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p><strong>Durée:</strong> {game.temps_de_jeu} min</p>
+                <p><strong>Joueurs:</strong> {game.nombre_de_joueur}</p>
+                <p><strong>Mécanisme:</strong> {game.mecanisme}</p>
+                <p className="text-sm mt-2">{game.recap}</p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-yellow-500">
+                      {"★".repeat(Math.floor(game.note))}
+                      {"☆".repeat(5 - Math.floor(game.note))}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {game.regles && (
+                      <a
+                        href={game.regles}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                      >
+                        Règles PDF
+                      </a>
+                    )}
+                    {game.image && game.image !== game.boite_de_jeu && (
+                      <a
+                        href={getGoogleDriveDirectLink(game.image)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                      >
+                        Photos
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default BoardGameGallery;
