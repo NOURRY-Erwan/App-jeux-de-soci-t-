@@ -44,12 +44,13 @@ def format_duration(duration):
         return None
 
 # Fonction pour télécharger et afficher les images
-def fetch_image(url):
-    """Fetch and return an image from a URL."""
+def fetch_image(url, size=(50, 50)):
+    """Fetch and return a resized image from a URL."""
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            return Image.open(BytesIO(response.content))
+            image = Image.open(BytesIO(response.content))
+            return image.resize(size)
         else:
             st.warning(f"Impossible de charger l'image : {url}")
             return None
@@ -107,30 +108,13 @@ def main():
     st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
 
     for _, jeu in df.iterrows():
-        expander_title = f"{jeu['noms']} ({jeu['récap']})" if pd.notna(jeu['récap']) else jeu['noms']
+        # Télécharger la miniature
+        thumbnail = fetch_image(jeu['image'], size=(50, 50)) if pd.notna(jeu['image']) else None
+        thumbnail_html = f'<img src="{jeu["image"]}" style="width:50px; height:50px; vertical-align:middle; margin-right:10px;">' if pd.notna(jeu['image']) else ""
 
-        with st.expander(expander_title):
-            col1, col2 = st.columns([1, 2])
+        # Construire le titre de l'expander
+        expander_title = f"{thumbnail_html}{jeu['noms']} ({jeu['récap']})" if pd.notna(jeu['récap']) else f"{thumbnail_html}{jeu['noms']}"
 
-            with col1:
-                # Télécharger et afficher l'image
-                image = fetch_image(jeu['image']) if pd.notna(jeu['image']) else None
-                if image:
-                    st.image(image, use_column_width=True)
-                else:
-                    st.image("https://via.placeholder.com/200", width=200)
-
-            with col2:
-                st.metric("Note", f"{jeu['note']}/5" if pd.notna(jeu['note']) else "Non noté")
-                st.metric("Durée", f"{jeu['temps_de_jeu'][0]}-{jeu['temps_de_jeu'][1]} minutes" if isinstance(jeu['temps_de_jeu'], tuple) else f"{jeu['temps_de_jeu']} minutes")
-                st.metric("Joueurs", f"{jeu['nombre_de_joueur'][0]}-{jeu['nombre_de_joueur'][1]} joueurs" if isinstance(jeu['nombre_de_joueur'], tuple) else f"{jeu['nombre_de_joueur']} joueurs")
-
-                if pd.notna(jeu['règles']):
-                    st.markdown(f"[📖 Règles]({jeu['règles']})")
-
-                st.write(f"**Mécanismes**: {jeu['mécanisme']}")
-                st.write(f"**Description**: {jeu['récap']}")
-
-# Exécuter l'application
-if __name__ == "__main__":
-    main()
+        # Utiliser Streamlit Markdown pour intégrer l'image dans le titre
+        with st.expander("", expanded=False):
+            st.markdown(f"{thumbnail_html}<b>{jeu['noms']}", unsafe_allowe_output=True)
