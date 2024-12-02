@@ -22,25 +22,33 @@ def load_data(sheet_url):
 # URL publique du Google Sheets
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9d7G5-vwgujvUjgVvHg40wNrYqdtRt8ujK0C1fZkeFE4SjTXd_R-4khNytAPgb6wRKRSlT7kYEZV/pub?gid=0&single=true&output=csv"
 
-# Formatage des données
+# Fonction pour formater `nombre_de_joueur`
+def format_players(players):
+    """Convert number of players from '2 - 5' format to tuple or integer."""
+    try:
+        # Extraire les nombres avec une regex
+        numbers = re.findall(r'\d+', str(players))
+        if not numbers:  # Si aucun nombre trouvé, retourner None
+            return None
+        if len(numbers) == 1:  # Un seul nombre
+            return int(numbers[0])
+        return (int(numbers[0]), int(numbers[1]))  # Deux nombres pour une plage
+    except Exception as e:
+        st.warning(f"Erreur lors du formatage des joueurs : {players}. {e}")
+        return None
+
+# Fonction pour formater `temps_de_jeu`
 def format_duration(duration):
-    """Format game duration."""
+    """Convert game duration from '30 - 60' to tuple or integer."""
     try:
         numbers = re.findall(r'\d+', str(duration))
         if not numbers:
             return None
-        return int(numbers[0]) if len(numbers) == 1 else (int(numbers[0]), int(numbers[1]))
-    except:
-        return None
-
-def format_players(players):
-    """Format number of players."""
-    try:
-        numbers = re.findall(r'\d+', str(players))
-        if not numbers:
-            return None
-        return int(numbers[0]) if len(numbers) == 1 else (int(numbers[0]), int(numbers[1]))
-    except:
+        if len(numbers) == 1:
+            return int(numbers[0])
+        return (int(numbers[0]), int(numbers[1]))
+    except Exception as e:
+        st.warning(f"Erreur lors du formatage de la durée : {duration}. {e}")
         return None
 
 # Fonction principale
@@ -54,36 +62,32 @@ def main():
         st.error("Impossible de charger les données. Vérifiez le lien public.")
         return
 
-    # Vérifier les colonnes nécessaires
-    required_columns = ['noms', 'temps_de_jeu', 'nombre_de_joueur', 'mécanisme', 'récap', 'note', 'image', 'règles']
-    missing_columns = [col for col in required_columns if col not in df.columns]
-
-    if missing_columns:
-        st.error(f"Colonnes manquantes : {', '.join(missing_columns)}")
-        st.write("Colonnes disponibles :", list(df.columns))
-        return
-
-    # Nettoyage des colonnes
-    df['temps_de_jeu'] = df['temps_de_jeu'].apply(format_duration)
+    # Nettoyer les colonnes
     df['nombre_de_joueur'] = df['nombre_de_joueur'].apply(format_players)
+    df['temps_de_jeu'] = df['temps_de_jeu'].apply(format_duration)
 
     # Filtres dans la barre latérale
     st.sidebar.header("Filtres")
 
-    # Filtre par mécanisme
-    if 'mécanisme' in df.columns:
-        mecanismes = df['mécanisme'].dropna().unique().tolist()
-        selected_mecanismes = st.sidebar.multiselect("Mécanismes", mecanismes)
-        if selected_mecanismes:
-            df = df[df['mécanisme'].isin(selected_mecanismes)]
-
     # Filtre par nombre de joueurs
     num_players = st.sidebar.slider("Nombre de joueurs (min-max)", 1, 20, (1, 5))
-    df = df[df['nombre_de_joueur'].apply(lambda x: x and (x[0] >= num_players[0] and x[1] <= num_players[1]) if isinstance(x, tuple) else num_players[0] <= x <= num_players[1])]
+    df = df[df['nombre_de_joueur'].apply(
+        lambda x: (
+            isinstance(x, tuple) and x[0] <= num_players[1] and x[1] >= num_players[0]
+        ) or (
+            isinstance(x, int) and num_players[0] <= x <= num_players[1]
+        )
+    )]
 
     # Filtre par temps de jeu
     game_duration = st.sidebar.slider("Temps de jeu (minutes, min-max)", 0, 180, (0, 60))
-    df = df[df['temps_de_jeu'].apply(lambda x: x and (x[0] >= game_duration[0] and x[1] <= game_duration[1]) if isinstance(x, tuple) else game_duration[0] <= x <= game_duration[1])]
+    df = df[df['temps_de_jeu'].apply(
+        lambda x: (
+            isinstance(x, tuple) and x[0] <= game_duration[1] and x[1] >= game_duration[0]
+        ) or (
+            isinstance(x, int) and game_duration[0] <= x <= game_duration[1]
+        )
+    )]
 
     # Afficher les jeux
     st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
