@@ -19,9 +19,6 @@ def load_data(sheet_url):
         st.error(f"Erreur lors du chargement des données : {e}")
         return pd.DataFrame()
 
-# URL publique du Google Sheets
-SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9d7G5-vwgujvUjgVvHg40wNrYqdtRt8ujK0C1fZkeFE4SjTXd_R-4khNytAPgb6wRKRSlT7kYEZV/pub?gid=0&single=true&output=csv"
-
 # Fonction pour formater `nombre_de_joueur`
 def format_players(players):
     """Convert number of players from '2 - 5' format to tuple or integer."""
@@ -51,11 +48,22 @@ def format_duration(duration):
         st.warning(f"Erreur lors du formatage de la durée : {duration}. {e}")
         return None
 
+# Fonction pour convertir les liens Google Drive en liens affichables
+def format_image_url(url):
+    """Convert Google Drive URLs to displayable image URLs."""
+    if "drive.google.com" in str(url):
+        match = re.search(r"/d/([a-zA-Z0-9_-]+)", str(url))
+        if match:
+            file_id = match.group(1)
+            return f"https://drive.google.com/uc?export=view&id={file_id}"
+    return url
+
 # Fonction principale
 def main():
     st.title("🎲 Ma Collection de Jeux de Société")
     
     # Charger les données depuis Google Sheets
+    SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9d7G5-vwgujvUjgVvHg40wNrYqdtRt8ujK0C1fZkeFE4SjTXd_R-4khNytAPgb6wRKRSlT7kYEZV/pub?gid=0&single=true&output=csv"
     df = load_data(SHEET_URL)
 
     if df.empty:
@@ -65,9 +73,17 @@ def main():
     # Nettoyer les colonnes
     df['nombre_de_joueur'] = df['nombre_de_joueur'].apply(format_players)
     df['temps_de_jeu'] = df['temps_de_jeu'].apply(format_duration)
+    df['image'] = df['image'].apply(format_image_url)
 
     # Filtres dans la barre latérale
     st.sidebar.header("Filtres")
+
+    # Filtre par mécanisme
+    if 'mécanisme' in df.columns:
+        mecanismes = df['mécanisme'].dropna().unique().tolist()
+        selected_mecanismes = st.sidebar.multiselect("Mécanismes", mecanismes)
+        if selected_mecanismes:
+            df = df[df['mécanisme'].isin(selected_mecanismes)]
 
     # Filtre par nombre de joueurs
     num_players = st.sidebar.slider("Nombre de joueurs (min-max)", 1, 20, (1, 5))
