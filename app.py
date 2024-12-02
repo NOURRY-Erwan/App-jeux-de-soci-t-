@@ -1,60 +1,104 @@
-import streamlit as st
 import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import streamlit as st
+import re
 
-# Configuration de l'accès à Google Sheets
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('chemin/vers/votre/fichier_credentials.json', scope)
-client = gspread.authorize(creds)
+# Configuration de la page
+st.set_page_config(page_title="Collection de Jeux", layout="wide")
 
-# Ouvrir le Google Sheet spécifié
-sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ/edit?usp=sharing').worksheet('Feuille 1')
+# Charger les données depuis une URL
+def load_data(url):
+    """Load data from a CSV URL."""
+    try:
+        # Lire le CSV avec gestion de l'encodage
+        df = pd.read_csv(url, encoding='utf-8')
 
-# Fonction pour charger les données
-@st.cache_data
-def load_data():
-    data = sheet.get_all_records()
-    return pd.DataFrame(data)
+        # Nettoyer les noms de colonnes
+        df.columns = [col.strip().lower() for col in df.columns]
 
-# Interface utilisateur Streamlit
-st.title('Gestionnaire de Jeux de Société')
+        return df
+    except Exception as e:
+        st.error(f"Erreur de chargement : {e}")
+        return pd.DataFrame()
 
-# Charger les données
-df = load_data()
+# Formater la durée des jeux
+def format_duration(duration):
+    """Format game duration."""
+    try:
+        numbers = re.findall(r'\d+', str(duration))
+        if not numbers:
+            return "Durée non spécifiée"
+        return f"{numbers[0]} minutes" if len(numbers) == 1 else f"{numbers[0]}-{numbers[1]} minutes"
+    except:
+        return str(duration)
 
-# Système de filtres
-st.sidebar.header('Filtres')
-nombre_joueurs = st.sidebar.slider('Nombre de joueurs', 1, 20, (1, 20))
-temps_de_jeu = st.sidebar.multiselect('Temps de jeu', df['temps_de_jeu'].unique())
-mecanisme = st.sidebar.multiselect('Mécanisme', df['mécanisme'].unique())
+# Formater le nombre de joueurs
+def format_players(players):
+    """Format number of players."""
+    try:
+        numbers = re.findall(r'\d+', str(players))
+        if not numbers:
+            return "Nombre de joueurs non spécifié"
+        return f"{numbers[0]} joueurs" if len(numbers) == 1 else f"{numbers[0]}-{numbers[1]} joueurs"
+    except:
+        return str(players)
 
-# Appliquer les filtres
-filtered_df = df[
-    (df['Nombre_de_joueur'].str.split(' - ').str[0].astype(int) >= nombre_joueurs[0]) &
-    (df['Nombre_de_joueur'].str.split(' - ').str[-1].astype(int) <= nombre_joueurs[1])
-]
+# URL du Google Sheet
+SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 
-if temps_de_jeu:
-    filtered_df = filtered_df[filtered_df['temps_de_jeu'].isin(temps_de_jeu)]
-if mecanisme:
-    filtered_df = filtered_df[filtered_df['mécanisme'].isin(mecanisme)]
+# Fonction principale
+def main():
+    st.title("🎲 Ma Collection de Jeux de Société")
 
-# Affichage en galerie
-st.header('Galerie des Jeux')
-cols = st.columns(3)
-for index, row in filtered_df.iterrows():
-    with cols[index % 3]:
-        st.image(row['image'], caption=row['Noms'], use_column_width=True)
-        st.write(f"Joueurs : {row['Nombre_de_joueur']}")
-        st.write(f"Temps : {row['temps_de_jeu']}")
-        st.write(f"Mécanisme : {row['mécanisme']}")
-        if st.button(f"Voir les règles de {row['Noms']}"):
-            st.markdown(f"[Règles du jeu]({row['Règles']})")
+    # Charger les données
+    df = load_data(SHEET_URL)
 
-# Recherche de jeux
-st.header('Rechercher un jeu')
-search_term = st.text_input('Entrez le nom du jeu')
-if search_term:
-    result = df[df['Noms'].str.contains(search_term, case=False)]
-    st.dataframe(result[['Noms', 'temps_de_jeu', 'Nombre_de_joueur', 'mécanisme']])
+    if df.empty:
+        st.error("Impossible de charger les données. Vérifiez votre connexion ou l'URL.")
+        return
+
+    # Vérification des colonnes nécessaires
+    required_columns = ['noms', 'temps_de_jeu', 'nombre_de_joueur', 'mécanisme', 'récap', 'note', 'image', 'règles']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+
+    if missing_columns:
+        st.error(f"Colonnes manquantes : {', '.join(missing_columns)}")
+        st.write("Colonnes disponibles :", list(df.columns))
+        return
+
+    # Filtres dans la barre latérale
+    st.sidebar.header("Filtres")
+
+    if 'mécanisme' in df.columns:
+        mecanismes = df['mécanisme'].dropna().unique().tolist()
+        selected_mecanismes = st.sidebar.multiselect("Mécanismes", mecanismes)
+
+        if selected_mecanismes:
+            df = df[df['mécanisme'].isin(selected_mecanismes)]
+
+    # Afficher les jeux
+    st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
+
+    for _, jeu in df.iterrows():
+        with st.expander(jeu['noms']):
+            col1, col2 = st.columns([1, 2])
+
+            with col1:
+                # Afficher l'image du jeu
+                st.image(jeu['image'] if pd.notna(jeu['image']) else 'https://via.placeholder.com/200', width=200)
+
+            with col2:
+                # Afficher les détails du jeu
+                st.metric("Note", f"{jeu['note']}/5" if pd.notna(jeu['note']) else "Non noté")
+                st.metric("Durée", format_duration(jeu['temps_de_jeu']))
+                st.metric("Joueurs", format_players(jeu['nombre_de_joueur']))
+
+                if pd.notna(jeu['règles']):
+                    st.markdown(f"[📖 Règles]({jeu['règles']})")
+
+                st.write(f"**Mécanismes**: {jeu['mécanisme']}")
+                st.write(f"**Description**: {jeu['récap']}")
+
+# Exécuter l'application
+if __name__ == "__main__":
+    main()
