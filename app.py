@@ -48,16 +48,6 @@ def format_duration(duration):
         st.warning(f"Erreur lors du formatage de la durée : {duration}. {e}")
         return None
 
-# Fonction pour convertir les liens Google Drive en liens affichables
-def format_image_url(url):
-    """Convert Google Drive URLs to displayable image URLs."""
-    if "drive.google.com" in str(url):
-        match = re.search(r"/d/([a-zA-Z0-9_-]+)", str(url))
-        if match:
-            file_id = match.group(1)
-            return f"https://drive.google.com/uc?export=view&id={file_id}"
-    return url
-
 # Fonction principale
 def main():
     st.title("🎲 Ma Collection de Jeux de Société")
@@ -73,7 +63,6 @@ def main():
     # Nettoyer les colonnes
     df['nombre_de_joueur'] = df['nombre_de_joueur'].apply(format_players)
     df['temps_de_jeu'] = df['temps_de_jeu'].apply(format_duration)
-    df['image'] = df['image'].apply(format_image_url)
 
     # Filtres dans la barre latérale
     st.sidebar.header("Filtres")
@@ -109,7 +98,10 @@ def main():
     st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
 
     for _, jeu in df.iterrows():
-        with st.expander(jeu['noms']):
+        # Construire le titre de l'expander avec `noms` et `récap`
+        expander_title = f"{jeu['noms']} ({jeu['récap']})" if pd.notna(jeu['récap']) else jeu['noms']
+
+        with st.expander(expander_title):
             col1, col2 = st.columns([1, 2])
 
             with col1:
