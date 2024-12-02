@@ -1,6 +1,9 @@
 import pandas as pd
 import streamlit as st
 import re
+from PIL import Image
+import requests
+from io import BytesIO
 
 # Configuration de la page Streamlit
 st.set_page_config(page_title="Collection de Jeux", layout="wide")
@@ -9,10 +12,7 @@ st.set_page_config(page_title="Collection de Jeux", layout="wide")
 def load_data(sheet_url):
     """Load data from a public Google Sheets URL."""
     try:
-        # Charger les données directement depuis l'URL
         df = pd.read_csv(sheet_url)
-        
-        # Nettoyer les noms de colonnes
         df.columns = [col.strip().lower() for col in df.columns]
         return df
     except Exception as e:
@@ -21,22 +21,18 @@ def load_data(sheet_url):
 
 # Fonction pour formater `nombre_de_joueur`
 def format_players(players):
-    """Convert number of players from '2 - 5' format to tuple or integer."""
     try:
-        # Extraire les nombres avec une regex
         numbers = re.findall(r'\d+', str(players))
-        if not numbers:  # Si aucun nombre trouvé, retourner None
+        if not numbers:
             return None
-        if len(numbers) == 1:  # Un seul nombre
+        if len(numbers) == 1:
             return int(numbers[0])
-        return (int(numbers[0]), int(numbers[1]))  # Deux nombres pour une plage
-    except Exception as e:
-        st.warning(f"Erreur lors du formatage des joueurs : {players}. {e}")
+        return (int(numbers[0]), int(numbers[1]))
+    except:
         return None
 
 # Fonction pour formater `temps_de_jeu`
 def format_duration(duration):
-    """Convert game duration from '30 - 60' to tuple or integer."""
     try:
         numbers = re.findall(r'\d+', str(duration))
         if not numbers:
@@ -44,15 +40,28 @@ def format_duration(duration):
         if len(numbers) == 1:
             return int(numbers[0])
         return (int(numbers[0]), int(numbers[1]))
+    except:
+        return None
+
+# Fonction pour télécharger et afficher les images
+def fetch_image(url):
+    """Fetch and return an image from a URL."""
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return Image.open(BytesIO(response.content))
+        else:
+            st.warning(f"Impossible de charger l'image : {url}")
+            return None
     except Exception as e:
-        st.warning(f"Erreur lors du formatage de la durée : {duration}. {e}")
+        st.warning(f"Erreur lors du chargement de l'image : {e}")
         return None
 
 # Fonction principale
 def main():
     st.title("🎲 Ma Collection de Jeux de Société")
     
-    # Charger les données depuis Google Sheets
+    # Charger les données
     SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9d7G5-vwgujvUjgVvHg40wNrYqdtRt8ujK0C1fZkeFE4SjTXd_R-4khNytAPgb6wRKRSlT7kYEZV/pub?gid=0&single=true&output=csv"
     df = load_data(SHEET_URL)
 
@@ -98,18 +107,20 @@ def main():
     st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
 
     for _, jeu in df.iterrows():
-        # Construire le titre de l'expander avec `noms` et `récap`
         expander_title = f"{jeu['noms']} ({jeu['récap']})" if pd.notna(jeu['récap']) else jeu['noms']
 
         with st.expander(expander_title):
             col1, col2 = st.columns([1, 2])
 
             with col1:
-                # Afficher l'image du jeu
-                st.image(jeu['image'] if pd.notna(jeu['image']) else 'https://via.placeholder.com/200', width=200)
+                # Télécharger et afficher l'image
+                image = fetch_image(jeu['image']) if pd.notna(jeu['image']) else None
+                if image:
+                    st.image(image, use_column_width=True)
+                else:
+                    st.image("https://via.placeholder.com/200", width=200)
 
             with col2:
-                # Afficher les détails du jeu
                 st.metric("Note", f"{jeu['note']}/5" if pd.notna(jeu['note']) else "Non noté")
                 st.metric("Durée", f"{jeu['temps_de_jeu'][0]}-{jeu['temps_de_jeu'][1]} minutes" if isinstance(jeu['temps_de_jeu'], tuple) else f"{jeu['temps_de_jeu']} minutes")
                 st.metric("Joueurs", f"{jeu['nombre_de_joueur'][0]}-{jeu['nombre_de_joueur'][1]} joueurs" if isinstance(jeu['nombre_de_joueur'], tuple) else f"{jeu['nombre_de_joueur']} joueurs")
