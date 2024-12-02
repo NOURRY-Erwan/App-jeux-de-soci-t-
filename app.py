@@ -28,20 +28,20 @@ def format_duration(duration):
     try:
         numbers = re.findall(r'\d+', str(duration))
         if not numbers:
-            return "Durée non spécifiée"
-        return f"{numbers[0]} minutes" if len(numbers) == 1 else f"{numbers[0]}-{numbers[1]} minutes"
+            return None
+        return int(numbers[0]) if len(numbers) == 1 else (int(numbers[0]), int(numbers[1]))
     except:
-        return str(duration)
+        return None
 
 def format_players(players):
     """Format number of players."""
     try:
         numbers = re.findall(r'\d+', str(players))
         if not numbers:
-            return "Nombre de joueurs non spécifié"
-        return f"{numbers[0]} joueurs" if len(numbers) == 1 else f"{numbers[0]}-{numbers[1]} joueurs"
+            return None
+        return int(numbers[0]) if len(numbers) == 1 else (int(numbers[0]), int(numbers[1]))
     except:
-        return str(players)
+        return None
 
 # Fonction principale
 def main():
@@ -63,15 +63,27 @@ def main():
         st.write("Colonnes disponibles :", list(df.columns))
         return
 
+    # Nettoyage des colonnes
+    df['temps_de_jeu'] = df['temps_de_jeu'].apply(format_duration)
+    df['nombre_de_joueur'] = df['nombre_de_joueur'].apply(format_players)
+
     # Filtres dans la barre latérale
     st.sidebar.header("Filtres")
 
+    # Filtre par mécanisme
     if 'mécanisme' in df.columns:
         mecanismes = df['mécanisme'].dropna().unique().tolist()
         selected_mecanismes = st.sidebar.multiselect("Mécanismes", mecanismes)
-
         if selected_mecanismes:
             df = df[df['mécanisme'].isin(selected_mecanismes)]
+
+    # Filtre par nombre de joueurs
+    num_players = st.sidebar.slider("Nombre de joueurs (min-max)", 1, 20, (1, 5))
+    df = df[df['nombre_de_joueur'].apply(lambda x: x and (x[0] >= num_players[0] and x[1] <= num_players[1]) if isinstance(x, tuple) else num_players[0] <= x <= num_players[1])]
+
+    # Filtre par temps de jeu
+    game_duration = st.sidebar.slider("Temps de jeu (minutes, min-max)", 0, 180, (0, 60))
+    df = df[df['temps_de_jeu'].apply(lambda x: x and (x[0] >= game_duration[0] and x[1] <= game_duration[1]) if isinstance(x, tuple) else game_duration[0] <= x <= game_duration[1])]
 
     # Afficher les jeux
     st.subheader(f"🃏 Jeux ({len(df)} trouvés)")
@@ -87,8 +99,8 @@ def main():
             with col2:
                 # Afficher les détails du jeu
                 st.metric("Note", f"{jeu['note']}/5" if pd.notna(jeu['note']) else "Non noté")
-                st.metric("Durée", format_duration(jeu['temps_de_jeu']))
-                st.metric("Joueurs", format_players(jeu['nombre_de_joueur']))
+                st.metric("Durée", f"{jeu['temps_de_jeu'][0]}-{jeu['temps_de_jeu'][1]} minutes" if isinstance(jeu['temps_de_jeu'], tuple) else f"{jeu['temps_de_jeu']} minutes")
+                st.metric("Joueurs", f"{jeu['nombre_de_joueur'][0]}-{jeu['nombre_de_joueur'][1]} joueurs" if isinstance(jeu['nombre_de_joueur'], tuple) else f"{jeu['nombre_de_joueur']} joueurs")
 
                 if pd.notna(jeu['règles']):
                     st.markdown(f"[📖 Règles]({jeu['règles']})")
