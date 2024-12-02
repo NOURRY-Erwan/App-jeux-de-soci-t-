@@ -2,25 +2,27 @@ import pandas as pd
 import streamlit as st
 import re
 
-# Configuration de la page
+# Configuration de la page Streamlit
 st.set_page_config(page_title="Collection de Jeux", layout="wide")
 
-# Charger les données depuis une URL
-def load_data(url):
-    """Load data from a CSV URL."""
+# Fonction pour charger les données depuis l'URL du Google Sheets
+def load_data(sheet_url):
+    """Load data from a public Google Sheets URL."""
     try:
-        # Lire le CSV avec gestion de l'encodage
-        df = pd.read_csv(url, encoding='utf-8')
-
+        # Charger les données directement depuis l'URL
+        df = pd.read_csv(sheet_url)
+        
         # Nettoyer les noms de colonnes
         df.columns = [col.strip().lower() for col in df.columns]
-
         return df
     except Exception as e:
-        st.error(f"Erreur de chargement : {e}")
+        st.error(f"Erreur lors du chargement des données : {e}")
         return pd.DataFrame()
 
-# Formater la durée des jeux
+# URL publique du Google Sheets
+SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQk9d7G5-vwgujvUjgVvHg40wNrYqdtRt8ujK0C1fZkeFE4SjTXd_R-4khNytAPgb6wRKRSlT7kYEZV/pub?gid=0&single=true&output=csv"
+
+# Formatage des données
 def format_duration(duration):
     """Format game duration."""
     try:
@@ -31,7 +33,6 @@ def format_duration(duration):
     except:
         return str(duration)
 
-# Formater le nombre de joueurs
 def format_players(players):
     """Format number of players."""
     try:
@@ -42,22 +43,18 @@ def format_players(players):
     except:
         return str(players)
 
-# URL du Google Sheet
-SHEET_ID = "1itKcj2L9HyA0GBIFcRTeQ8-OiIOI5eqw23-vvgXI5pQ"
-SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
-
 # Fonction principale
 def main():
     st.title("🎲 Ma Collection de Jeux de Société")
-
-    # Charger les données
+    
+    # Charger les données depuis Google Sheets
     df = load_data(SHEET_URL)
 
     if df.empty:
-        st.error("Impossible de charger les données. Vérifiez votre connexion ou l'URL.")
+        st.error("Impossible de charger les données. Vérifiez le lien public.")
         return
 
-    # Vérification des colonnes nécessaires
+    # Vérifier les colonnes nécessaires
     required_columns = ['noms', 'temps_de_jeu', 'nombre_de_joueur', 'mécanisme', 'récap', 'note', 'image', 'règles']
     missing_columns = [col for col in required_columns if col not in df.columns]
 
